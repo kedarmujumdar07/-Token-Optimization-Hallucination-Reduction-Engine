@@ -1,0 +1,84 @@
+version: "3.9"
+
+services:
+  # ── TokenGuard Application ─────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tokenguard_app
+    ports:
+      - "8000:8000"   # FastAPI
+      - "8501:8501"   # Streamlit
+    volumes:
+      - .:/app
+      - ./chroma_db:/app/chroma_db
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - TOKEN_BUDGET=${TOKEN_BUDGET:-4000}
+      - CACHE_THRESHOLD=${CACHE_THRESHOLD:-0.92}
+      - KEEP_RATIO=${KEEP_RATIO:-0.70}
+      - CHROMA_DB_DIR=/app/chroma_db
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    depends_on:
+      - chromadb
+      - mlflow
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    command: >
+      sh -c "
+        uvicorn api.main:app --host 0.0.0.0 --port 8000 &
+        streamlit run dashboard/app.py --server.port 8501 --server.address 0.0.0.0
+      "
+
+  # ── ChromaDB Vector Store ──────────────────────────────────────────────────
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: tokenguard_chromadb
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./chroma_db:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+      - ANONYMIZED_TELEMETRY=FALSE
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+
+  # ── MLflow Experiment Tracking ─────────────────────────────────────────────
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: tokenguard_mlflow
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/mlruns
+    command: >
+      mlflow server
+        --host 0.0.0.0
+        --port 5000
+        --backend-store-uri /mlruns
+        --default-artifact-root /mlruns/artifacts
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  chroma_db:
+    driver: local
+  mlruns:
+    driver: local

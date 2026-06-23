@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env
+*.env
+
+# Model caches (large files — download on first run)
+.cache/
+huggingface/
+transformers_cache/
+sentence_transformers/
+
+# ChromaDB data
+chroma_db/
+*.chroma
+
+# MLflow runs
+mlruns/
+mlartifacts/
+
+# Benchmark output
+results/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
